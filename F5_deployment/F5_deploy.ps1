@@ -61,7 +61,8 @@ $F5IPAddress = "192.168.100.10"
 $F5MDName = "F5MD-OS"
 
 $F5VMName = "F5VM"
-$F5VMSize = "Standard_B2ms"
+# $F5VMSize = "Standard_B2ms"
+$F5VMSize = "Standard_E2ads_v5"
 
 $F5VMUser = "azureuser"
 
