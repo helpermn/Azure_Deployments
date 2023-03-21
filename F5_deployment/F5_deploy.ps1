@@ -1,23 +1,37 @@
+#region SECRET VARIABLES
+
+[string]$SubscriptionId = ""
+[string]$TenantId = ""
+
+[string]$HomeIP = ""
+
+try {
+    Set-Location -Path (Join-Path -Path (Get-Location).Path -ChildPath "F5_deployment") -ErrorAction Stop
+}
+catch {
+    Write-Host -ForegroundColor Cyan (Get-Date)"-Cannot change directory to:  F5_deployment"
+    Exit
+}
+
+try {
+    . (Join-Path -Path (Get-Location).Path -ChildPath "F5_deploy_secrets.ps1") -ErrorAction Stop
+}
+catch {
+    Write-Host -ForegroundColor Cyan (Get-Date)"-Cannot load secrets file:  F5_deploy_secrets.ps1"
+    Exit
+}
+
+#endregion
+
 #region TRANSCRIPT START
 
 Start-Transcript -LiteralPath (Join-Path -Path (Get-Location).Path -ChildPath "F5_deploy.log") -Append -IncludeInvocationHeader 
 
 #endregion
 
-#region SECRET VARIABLES
+#region VARIABLES
 
 # Update-AzConfig -DisplayBreakingChangeWarning $false
-
-[string]$SubscriptionId = ""
-[string]$TenantId = ""
-
-$HomeIP = ""
-
-. (Join-Path -Path (Get-Location).Path -ChildPath "F5_deploy_secrets.ps1")
-
-#endregion
-
-#region VARIABLES
 
 $TagF5Testing = @{"INTENDED_USE"="F5testing"}
 
@@ -112,7 +126,7 @@ function Register-IdemAzResourceProvider {
                     while ($ResourceProvider.RegistrationState -eq "Registering") {
                         Start-Sleep -Seconds 10
                         $ResourceProvider = Get-AzResourceProvider -Location $LocationName -ListAvailable | Where-Object {$_.ProviderNamespace -eq $ResourceProviderNamespace}
-                        Write-Host $ResourceProvider.RegistrationState
+                        Write-Host -ForegroundColor Cyan (Get-Date)"-Registration State: "$ResourceProvider.RegistrationState
                     }
                 } else {
                     Write-Host -ForegroundColor Cyan (Get-Date)"-Resource Provider registered: "$ResourceProvider.ProviderNamespace
@@ -291,7 +305,7 @@ if ($null -eq $F5IPPublic) {
     $F5IPPublic = New-AzPublicIpAddress -Name $F5IPPublicName -ResourceGroupName $ResourceGroupName -Location $LocationName -Sku Standard -AllocationMethod Static -Tag $TagF5Testing
     Write-Host -ForegroundColor Cyan (Get-Date)"-New PIP: "$F5IPPublic.IpAddress
 } else {
-    Write-Host -ForegroundColor Cyan (Get-Date)"-PIP exists: "$F5IPPublic
+    Write-Host -ForegroundColor Cyan (Get-Date)"-PIP exists: "$F5IPPublic.IpAddress
 }
 
 $F5NIC = Get-AzNetworkInterface -ResourceGroupName $ResourceGroupName | Where-Object {$_.Name -eq $F5NICName}
@@ -302,7 +316,7 @@ if ($null -eq $F5NIC) {
     Write-Host -ForegroundColor Cyan (Get-Date)"-Create NIC: "$F5NICName
     $F5NIC = New-AzNetworkInterface -Name $F5NICName -ResourceGroupName $ResourceGroupName -Location $LocationName -IpConfiguration $F5IPConfig -Tag $TagF5Testing
 } else {
-    Write-Host -ForegroundColor Cyan (Get-Date)"-NIC exists: "$F5NIC.IpConfigurations
+    Write-Host -ForegroundColor Cyan (Get-Date)"-NIC exists: "$F5NIC.Name
 }
 
 #endregion
