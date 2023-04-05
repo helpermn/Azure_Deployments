@@ -5,12 +5,16 @@
 
 [string]$HomeIP = ""
 
-try {
-    Set-Location -Path (Join-Path -Path (Get-Location).Path -ChildPath "F5_deployment") -ErrorAction Stop
-}
-catch {
-    Write-Host -ForegroundColor Cyan (Get-Date)"-Cannot change directory to:  F5_deployment"
-    Exit
+if (!(Get-Location).Path.EndsWith("/F5_deployment")) {
+
+    try {
+        Set-Location -Path (Join-Path -Path (Get-Location).Path -ChildPath "F5_deployment") -ErrorAction Stop
+    }
+    catch {
+        Write-Host -ForegroundColor Cyan (Get-Date)"-Cannot change directory to:  F5_deployment"
+        Exit
+    }
+
 }
 
 try {
@@ -95,9 +99,7 @@ function Register-IdemAzResourceProvider {
         PSResourceProvider
 
     .NOTES
-        Author:  Mike F Robbins
-        Website: http://mikefrobbins.com
-        Twitter: @mikefrobbins
+        Author:  helpermn
     #>
 
     [CmdletBinding()]
@@ -304,9 +306,11 @@ $F5IPPublic = Get-AzPublicIpAddress -ResourceGroupName $ResourceGroupName | Wher
 if ($null -eq $F5IPPublic) {
     Write-Host -ForegroundColor Cyan (Get-Date)"-Create PIP: "$F5IPPublicName
     $F5IPPublic = New-AzPublicIpAddress -Name $F5IPPublicName -ResourceGroupName $ResourceGroupName -Location $LocationName -Sku Standard -AllocationMethod Static -Tag $TagF5Testing
-    Write-Host -ForegroundColor Cyan (Get-Date)"-New PIP: "$F5IPPublic.IpAddress
+    $F5IPPublicAddress=$F5IPPublic.IpAddress
+    Write-Host -ForegroundColor Cyan (Get-Date)"-New PIP: "$F5IPPublicAddress
 } else {
-    Write-Host -ForegroundColor Cyan (Get-Date)"-PIP exists: "$F5IPPublic.IpAddress
+    $F5IPPublicAddress=$F5IPPublic.IpAddress
+    Write-Host -ForegroundColor Cyan (Get-Date)"-PIP exists: "$F5IPPublicAddress
 }
 
 $F5NIC = Get-AzNetworkInterface -ResourceGroupName $ResourceGroupName | Where-Object {$_.Name -eq $F5NICName}
@@ -375,6 +379,7 @@ if ($null -eq $F5VM) {
 } else {
 
     Write-Host -ForegroundColor Cyan (Get-Date)"-VM exists: "$F5VM.Name
+    Write-Host -ForegroundColor Cyan (Get-Date)"-Password: "$F5VMPassPlain
 
 }
 
