@@ -353,11 +353,11 @@ tmsh -c "save sys config partitions all"
 
 tmsh -c "modify sys db ui.advisory.text { value ''Onboarding with PowerShell in progress... [installing ISO, SSHD stopped]'' }"
 tmsh -c "stop sys service sshd"
-tmsh -c "install sys software image ''$F5ISOFile'' volume HD1.2 create-volume reboot"
+tmsh -c "install sys software image ''$ISOFileName'' volume HD1.2 create-volume reboot"
 
 percentInstall=0
 while true; do
-    percentInstall=$(tmsh -c "show sys software status" | grep ''HD1.2'' | tr -s "\t\n " " " | tac -s " " | cut -d " " -f 2)
+    percentInstall=$(tmsh -c "show sys software status" | grep ''HD1.2'' | tr -s "\t\n " " " | cut -d " " -f 7)
     tmsh -c "modify sys db ui.advisory.text { value ''Onboarding with PowerShell in progress... [installing ISO, completed ${percentInstall}%, SSHD stopped]'' }"
     sleep 10
 done
