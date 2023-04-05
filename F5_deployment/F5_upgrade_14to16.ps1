@@ -311,7 +311,7 @@ tmsh -c "stop sys service sshd"
 reboot
 '
 
-$RunCommandOutput = Invoke-AzVMRunCommand -VM $VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
+$RunCommandOutput = Invoke-AzVMRunCommand -VM $F5VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
 
 Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision,active
 
@@ -363,7 +363,7 @@ while true; do
 done
 '
 
-$RunCommandOutput = Invoke-AzVMRunCommand -VM $VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
+$RunCommandOutput = Invoke-AzVMRunCommand -VM $F5VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
 
 Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision,active
 
@@ -400,7 +400,7 @@ tmsh -c "stop sys service sshd"
 reboot
 '
 
-$RunCommandOutput = Invoke-AzVMRunCommand -VM $VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
+$RunCommandOutput = Invoke-AzVMRunCommand -VM $F5VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
 
 Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision,active
 
@@ -465,7 +465,7 @@ tmsh -c "stop sys service sshd"
 reboot
 '
 
-$RunCommandOutput = Invoke-AzVMRunCommand -VM $VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
+$RunCommandOutput = Invoke-AzVMRunCommand -VM $F5VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
 
 Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision,active
 
@@ -483,7 +483,7 @@ $ScriptString = '#!/bin/bash
 tmsh -c "modify sys db ui.advisory.text { value  ''Upload UCS and restore config manually. PowerShell onboarding script has been stopped.'' }"
 '
 
-$RunCommandOutput = Invoke-AzVMRunCommand -VM $VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
+$RunCommandOutput = Invoke-AzVMRunCommand -VM $F5VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
 
 Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision,active
 
@@ -517,7 +517,7 @@ tmsh -c "stop sys service sshd"
 reboot
 '
 
-$RunCommandOutput = Invoke-AzVMRunCommand -VM $VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
+$RunCommandOutput = Invoke-AzVMRunCommand -VM $F5VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
 
 Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision,active
 
@@ -563,7 +563,7 @@ tmsh -c "stop sys service sshd"
 reboot
 '
 
-$RunCommandOutput = Invoke-AzVMRunCommand -VM $VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
+$RunCommandOutput = Invoke-AzVMRunCommand -VM $F5VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
 
 Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision,active
 
@@ -592,7 +592,7 @@ tmsh -c "stop sys service sshd"
 tmsh -c "reboot volume HD1.1"
 '
 
-$RunCommandOutput = Invoke-AzVMRunCommand -VM $VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
+$RunCommandOutput = Invoke-AzVMRunCommand -VM $F5VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
 
 Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision,active
 
@@ -612,7 +612,7 @@ BackupUCSFile="/shared/tmp/$(echo $HOSTNAME | cut -d ''.'' -f 1)-$(date +%Y%m%d_
 tmsh -c "save sys ucs ${BackupUCSFile}"
 '
 
-$RunCommandOutput = Invoke-AzVMRunCommand -VM $VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
+$RunCommandOutput = Invoke-AzVMRunCommand -VM $F5VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
 
 Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision,active
 
