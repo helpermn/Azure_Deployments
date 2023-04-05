@@ -288,6 +288,7 @@ Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat
 # - v16 disk extension and provisioning
 # - v14 dowanload and installation
 
+$ScriptString=''
 [hashtable]$F5ScriptParams = @{}
 
 $ScriptString = '#!/bin/bash
@@ -315,6 +316,7 @@ $RunCommandOutput = Invoke-AzVMRunCommand -VM $F5VM -CommandId 'RunShellScript' 
 
 Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision,active
 
+$ScriptString=''
 [hashtable]$F5ScriptParams = @{}
 
 $F5ScriptParams.Add("ISOFileURL", $F5ISOToken)
@@ -337,7 +339,7 @@ wait_bigip_ready_provision
 wait_bigip_ready_config
 while ! getPromptStatus | grep -q ''Active''; do sleep 10; done;
 
-tmsh -c "modify sys db ui.advisory.text { value ''Onboarding with PowerShell in progress... [downloading ISO]'' }"
+tmsh -c "modify sys db ui.advisory.text { value ''Onboarding with PowerShell in progress... [downloading ISO file]'' }"
 ISOFileSize=$(curl -q -s -I "$ISOFileURL" | grep "Content-Length:" | cut -d " " -f 2 | tr -dc ''[[:digit:]]'')
 curl -q -s -o "/shared/images/$ISOFileName" "$ISOFileURL" &
 while jobs %1 >/dev/null 2>&1; do
@@ -345,8 +347,36 @@ while jobs %1 >/dev/null 2>&1; do
     currentFileSize=$(stat --format=%s "/shared/images/$ISOFileName" 2>/dev/null | tr -d ''\n'')
     : ${currentFileSize:=0}
     percentDownload=$((currentFileSize*100/ISOFileSize))
-    tmsh -c "modify sys db ui.advisory.text { value ''Onboarding with PowerShell in progress... [downloading ISO, completed ${percentDownload}%]'' }"
+    tmsh -c "modify sys db ui.advisory.text { value ''Onboarding with PowerShell in progress... [downloading ISO file, completed ${percentDownload}%]'' }"
 done;
+
+tmsh -c "modify sys db ui.advisory.text { value ''Onboarding with PowerShell in progress... [verifying ISO file]'' }"
+if ! /usr/bin/checkisomd5 "/shared/images/$ISOFileName" >/dev/null 2>&1; then
+    tmsh -c "modify sys db ui.advisory.text { value ''Onboarding with PowerShell in progress... [ISO file verification failed, script stopped]'' }"
+    echo -n "ISOVerificationFailed" >&2
+    exit 1
+fi
+'
+
+$RunCommandOutput = Invoke-AzVMRunCommand -VM $F5VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
+
+if ($RunCommandOutput.Value.Message -like "*ISOVerificationFailed*") {
+    Write-Host -ForegroundColor Cyan "ISO file verification failed. Please fix the issue manually. When done, press Y and [ENTER] to continue."
+    $AskIfContinue = Read-Host
+    if ($AskIfContinue -ne "Y") {
+        exit
+    }
+}
+
+$ScriptString=''
+[hashtable]$F5ScriptParams = @{}
+
+$F5ScriptParams.Add("ISOFileName", $F5ISOFile)
+
+$ScriptString = '#!/bin/bash
+
+. /etc/bashrc
+. /usr/lib/bigstart/bigip-ready-functions
 
 tmsh -c "modify sys db ui.advisory.text { value ''Onboarding with PowerShell in progress... [saving config]'' }"
 tmsh -c "save sys config partitions all"
@@ -374,10 +404,12 @@ Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat
 ###
 
 # Step 2
-# - v14 preparation: disk extension, provisioning, licensing
+# - v14 preparation: setting passwords, disk extension, provisioning, licensing
 
 $ScriptString=''
 [hashtable]$F5ScriptParams = @{}
+
+$F5ScriptParams.Add("F5adminPass", $F5VMPassPlain)
 
 $ScriptString = '#!/bin/bash
 
@@ -388,6 +420,11 @@ tmsh -c "modify sys db ui.advisory.color { value orange }"
 tmsh -c "modify sys db ui.advisory.text { value  ''Onboarding with PowerShell in progress...'' }"
 tmsh -c "modify sys db ui.advisory.enabled { value true }"
 tmsh -c "modify sys global-settings gui-setup disabled"
+
+tmsh -c "modify sys db ui.advisory.text { value  ''Onboarding with PowerShell in progress... [setting admin and root passwords]'' }"
+tmsh -c "modify auth user admin password ''$F5adminPass''"
+echo -e "${F5adminPass}\n${F5adminPass}" | passwd root >/dev/null 2>&1
+# tmsh -c "modify sys db systemauth.disablerootlogin value true"
 
 tmsh -c "modify sys db ui.advisory.text { value  ''Onboarding with PowerShell in progress... [extending disks and reboot]'' }"
 tmsh -c "modify sys disk directory /appdata new-size 33554432"
