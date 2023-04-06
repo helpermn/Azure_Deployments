@@ -173,7 +173,7 @@ Write-Host -ForegroundColor Cyan (Get-Date)"-Default location: "$Location.Displa
 
 #region RESOURCE GROUP
 
-$ResourceGroup = Get-AzResourceGroup -Location $LocationName -Name $ResourceGroupName
+$ResourceGroup = Get-AzResourceGroup -Location $LocationName -Name $ResourceGroupName -ErrorAction SilentlyContinue
 if ($null -eq $ResourceGroup)
     {
         Write-Host -ForegroundColor Cyan (Get-Date)"-Create Resource Group: "$ResourceGroupName
@@ -190,9 +190,9 @@ if ($null -eq $ResourceGroup)
 
 #region STORAGE ACCOUNT
 
-$ResourceProvider = Register-IdemAzResourceProvider -ResourceProviderName "Microsoft.Storage" -LocationName $LocationName
+$ResourceProvider = Register-IdemAzResourceProvider -ResourceProviderName "Microsoft.Storage" -LocationName $LocationName -ErrorAction SilentlyContinue
 
-$StorageAccount = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName
+$StorageAccount = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -ErrorAction SilentlyContinue
 
 if ($null -eq $StorageAccount)
     {
@@ -204,20 +204,20 @@ if ($null -eq $StorageAccount)
         Write-Host -ForegroundColor Cyan (Get-Date)"-Storage Account exists: "$StorageAccountName
     }
 
-$StorageShare = Get-AzStorageShare -Name $StorageShareName -Context $StorageAccount.Context
+$StorageShare = Get-AzStorageShare -Name $StorageShareName -Context $StorageAccount.Context -ErrorAction SilentlyContinue
 
 if ($null -eq $StorageShare)
     {
         Write-Host -ForegroundColor Cyan (Get-Date)"-Create Storage Share: "$StorageShareName
         $StorageShare = New-AzStorageShare -Name $StorageShareName -Context $StorageAccount.Context
-        Set-AzStorageShareQuota -Share $StorageShare.CloudFileShare -QuotaGiB 10
-        Update-AzRmStorageShare -StorageAccount $StorageAccount -Name $StorageShareName -AccessTier Hot
+        Set-AzStorageShareQuota -Share $StorageShare.CloudFileShare -QuotaGiB 10 | Out-Null
+        Update-AzRmStorageShare -StorageAccount $StorageAccount -Name $StorageShareName -AccessTier Hot | Out-Null
     }
     else {
         Write-Host -ForegroundColor Cyan (Get-Date)"-Storage Share exists: "$StorageShareName
     }
 
-$StorageDirectory = Get-AzStorageFile -Share $StorageShare.CloudFileShare -Path $StorageShareDirectoryName
+$StorageDirectory = Get-AzStorageFile -Share $StorageShare.CloudFileShare -Path $StorageShareDirectoryName -ErrorAction SilentlyContinue
 
 if ($null -eq $StorageDirectory)
     {
@@ -228,18 +228,19 @@ if ($null -eq $StorageDirectory)
     }
 
 
-$StorageFile = Get-AzStorageFile -Share $StorageShare.CloudFileShare -Path "$StorageShareDirectoryName/$F5ISOFile"
+$StorageFile = Get-AzStorageFile -Share $StorageShare.CloudFileShare -Path "$StorageShareDirectoryName/$F5ISOFile" -ErrorAction SilentlyContinue
 
 if ($null -eq $StorageFile)
     {
-        Write-Host -ForegroundColor Cyan (Get-Date)"-Create Storage File: "$StorageShareDirectoryName
+        Write-Host -ForegroundColor Cyan (Get-Date)"-Create Storage File: "$F5ISOFile
         Set-AzStorageFileContent -Context $StorageAccount.Context -ShareName $StorageShareName -Source "$F5ISOFileLocalPath$F5ISOFile" -Path "$StorageShareDirectoryName/$F5ISOFile"
+        $StorageFile = Get-AzStorageFile -Share $StorageShare.CloudFileShare -Path "$StorageShareDirectoryName/$F5ISOFile" -ErrorAction SilentlyContinue
     } else {
-        Write-Host -ForegroundColor Cyan (Get-Date)"-Storage File exists: "$StorageShareDirectoryName
+        Write-Host -ForegroundColor Cyan (Get-Date)"-Storage File exists: "$StorageFile.Name
     }
 
-$StorageShareAccessPolicy = Get-AzStorageShareStoredAccessPolicy -ShareName $StorageShare.Name -Context $StorageAccount.Context -Policy $StorageShareAccessPolicyName
-    
+$StorageShareAccessPolicy = Get-AzStorageShareStoredAccessPolicy -ShareName $StorageShare.Name -Context $StorageAccount.Context -Policy $StorageShareAccessPolicyName -ErrorAction SilentlyContinue
+
 if ($null -eq $StorageShareAccessPolicy)
     {
         Write-Host -ForegroundColor Cyan (Get-Date)"-Create Storage Policy: "$StorageShareAccessPolicyName
@@ -275,8 +276,8 @@ $NetworkSubnet = Get-AzVirtualNetworkSubnetConfig -VirtualNetwork $NetworkVNet |
 
 if ($null -eq $NetworkSubnet) {
     Write-Host -ForegroundColor Cyan (Get-Date)"-Create Subnet: "$NewtorkSubnetNameF5
-    Add-AzVirtualNetworkSubnetConfig -Name $NewtorkSubnetNameF5 -VirtualNetwork $NetworkVNet -AddressPrefix $NetworkSubnetPrefixF5 | Out-Null
-    $NetworkVNet | Set-AzVirtualNetwork | Out-Null
+    $NetworkVNet = Add-AzVirtualNetworkSubnetConfig -Name $NewtorkSubnetNameF5 -VirtualNetwork $NetworkVNet -AddressPrefix $NetworkSubnetPrefixF5
+    $NetworkVNet = Set-AzVirtualNetwork -VirtualNetwork $NetworkVNet
     $NetworkSubnet = Get-AzVirtualNetworkSubnetConfig -VirtualNetwork $NetworkVNet | Where-Object {$_.Name -eq $NewtorkSubnetNameF5}
 } else {
     Write-Host -ForegroundColor Cyan (Get-Date)"-Subnet exists: "$NetworkSubnet.Name
@@ -317,7 +318,7 @@ $F5NIC = Get-AzNetworkInterface -ResourceGroupName $ResourceGroupName | Where-Ob
 
 if ($null -eq $F5NIC) {
     Write-Host -ForegroundColor Cyan (Get-Date)"-Create IPConfig: "$F5IPConfigName
-    $F5IPConfig = New-AzNetworkInterfaceIpConfig -Name $F5IPConfigName -Primary -SubnetId $NetworkSubnet.Id -PrivateIpAddressVersion IPv4 -PrivateIpAddress $F5IPAddress -PublicIpAddressId $F5IPPublic.Id
+    $F5IPConfig = New-AzNetworkInterfaceIpConfig -Name $F5IPConfigName -PrivateIpAddressVersion IPv4 -PrivateIpAddress $F5IPAddress -Primary -Subnet $NetworkSubnet -PublicIpAddress $F5IPPublic
     Write-Host -ForegroundColor Cyan (Get-Date)"-Create NIC: "$F5NICName
     $F5NIC = New-AzNetworkInterface -Name $F5NICName -ResourceGroupName $ResourceGroupName -Location $LocationName -IpConfiguration $F5IPConfig -Tag $TagF5Testing
 } else {
@@ -365,7 +366,7 @@ if ($null -eq $F5VM) {
     $F5VM = New-AzVMConfig -VMName $F5VMName -VMSize (Get-AzVMSize -Location $LocationName | Where-Object {$_.Name -eq $F5VMSize}).Name -Tags $TagF5Testing
     $F5VM = Set-AzVMOperatingSystem -VM $F5VM -Linux -ComputerName $F5VMName -Credential $F5Credential
     $F5VM = Add-AzVMNetworkInterface -VM $F5VM -Id $F5NIC.Id
-    $F5VM = Set-AzVMOSDisk -VM $F5VM -Name $F5MDName -CreateOption FromImage -DiskSizeInGB 127 -StorageAccountType Standard_LRS -DeleteOption Delete -Linux
+    $F5VM = Set-AzVMOSDisk -VM $F5VM -Name $F5MDName -CreateOption FromImage -DiskSizeInGB 127 -StorageAccountType StandardSSD_LRS -DeleteOption Delete -Linux
     $F5VM = Set-AzVMBootDiagnostic -VM $F5VM -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -Enable
     # Get-AzVMImagePublisher -Location $LocationName | Select PublisherName
     # Get-AzVMImageOffer -Location $LocationName -PublisherName "f5-networks"
@@ -388,9 +389,9 @@ if ($null -eq $F5VM) {
 #region MANAGED DISK
 
 while ($F5VM.ProvisioningState -ne "Succeeded") {
+    $F5VM = Get-AzVM -ResourceGroupName $ResourceGroupName -Name $F5VMName
     Write-Host -ForegroundColor Cyan (Get-Date)"-VM Provisioning State: "$F5VM.ProvisioningState
     Start-Sleep -Seconds 10
-    $F5VM = Get-AzVM -ResourceGroupName $ResourceGroupName -Name $F5VMName
 }
 
 $F5MD = Get-AzDisk -ResourceGroupName $ResourceGroupName -DiskName $F5VM.StorageProfile.OsDisk.Name
