@@ -285,11 +285,11 @@ Write-Host -ForegroundColor Cyan (Get-Date)"-Default location: "$Location.Displa
 
 $F5VM = Get-AzVM -ResourceGroupName $ResourceGroupName -Name $F5VMName
 
-Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision,active
+$F5ReadyOutput = Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision,active
 
 # Step 1
 # - v16 disk extension and provisioning
-# - v14 dowanload and installation
+# - v14 download, installation, reboot into
 
 $ScriptString=''
 [hashtable]$F5ScriptParams = @{}
@@ -317,7 +317,7 @@ reboot
 
 $RunCommandOutput = Invoke-AzVMRunCommand -VM $F5VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
 
-Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision,active
+$F5ReadyOutput = Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision
 
 $ScriptString=''
 [hashtable]$F5ScriptParams = @{}
@@ -334,13 +334,11 @@ tmsh -c "modify sys db ui.advisory.text { value  ''Onboarding with PowerShell in
 tmsh -c "modify sys db provision.extramb { value 500 }"
 wait_bigip_ready_provision
 wait_bigip_ready_config
-while ! getPromptStatus | grep -q ''Active''; do sleep 10; done;
 
 tmsh -c "modify sys db ui.advisory.text { value  ''Onboarding with PowerShell in progress... [modules provisioning: APM]'' }"
 tmsh -c "modify sys provision apm { level nominal }"
 wait_bigip_ready_provision
 wait_bigip_ready_config
-while ! getPromptStatus | grep -q ''Active''; do sleep 10; done;
 
 tmsh -c "modify sys db ui.advisory.text { value ''Onboarding with PowerShell in progress... [downloading ISO file]'' }"
 ISOFileSize=$(curl -q -s -I "$ISOFileURL" | grep "Content-Length:" | cut -d " " -f 2 | tr -dc ''[[:digit:]]'')
@@ -398,10 +396,10 @@ done
 
 $RunCommandOutput = Invoke-AzVMRunCommand -VM $F5VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
 
-Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision,active
+$F5ReadyOutput = Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision
 
 ###
-### after reboot:
+### after reboot, because installed from ISO:
 ### - SSH user/pass: root/default
 ### - WEBUI user/pass: admin/admin (or the same as root if root pass has been changed via SSH)
 ###
@@ -442,7 +440,7 @@ reboot
 
 $RunCommandOutput = Invoke-AzVMRunCommand -VM $F5VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
 
-Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision,active
+$F5ReadyOutput = Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision
 
 $ScriptString=''
 [hashtable]$F5ScriptParams = @{}
@@ -459,31 +457,26 @@ tmsh -c "modify sys db ui.advisory.text { value  ''Onboarding with PowerShell in
 tmsh -c "modify sys db provision.extramb { value 500 }"
 wait_bigip_ready_provision
 wait_bigip_ready_config
-while ! getPromptStatus | grep -q ''Active''; do sleep 10; done;
 
 tmsh -c "modify sys db ui.advisory.text { value  ''Onboarding with PowerShell in progress... [modules provisioning: APM]'' }"
 tmsh -c "modify sys provision apm { level nominal }"
 wait_bigip_ready_provision
 wait_bigip_ready_config
-while ! getPromptStatus | grep -q ''Active''; do sleep 10; done;
 
 tmsh -c "modify sys db ui.advisory.text { value  ''Onboarding with PowerShell in progress... [modules provisioning: ASM]'' }"
 tmsh -c "modify sys provision asm { level nominal }"
 wait_bigip_ready_provision
 wait_bigip_ready_config
-while ! getPromptStatus | grep -q ''Active''; do sleep 10; done;
 
 tmsh -c "modify sys db ui.advisory.text { value  ''Onboarding with PowerShell in progress... [modules provisioning: AVR]'' }"
 tmsh -c "modify sys provision avr { level nominal }"
 wait_bigip_ready_provision
 wait_bigip_ready_config
-while ! getPromptStatus | grep -q ''Active''; do sleep 10; done;
 
 tmsh -c "modify sys db ui.advisory.text { value  ''Onboarding with PowerShell in progress... [modules provisioning: AFM]'' }"
 tmsh -c "modify sys provision afm { level nominal }"
 wait_bigip_ready_provision
 wait_bigip_ready_config
-while ! getPromptStatus | grep -q ''Active''; do sleep 10; done;
 
 tmsh -c "modify sys db ui.advisory.text { value  ''Onboarding with PowerShell in progress... [licensing]'' }"
 if [ -n "$AddonRegistrationKeys" ]; then
@@ -494,10 +487,9 @@ else
     /usr/local/bin/SOAPLicenseClient --basekey "$RegistrationKey"
     # tmsh -c "install /sys license registration-key $RegistrationKey"
 fi
-# To revoke a license:
-# tmsh -c "revoke /sys license"
 wait_bigip_ready_license
 wait_bigip_ready_config
+wait_bigip_ready_provision
 while ! getPromptStatus | grep -q ''Active''; do sleep 10; done;
 
 tmsh -c "modify sys db ui.advisory.text { value  ''Onboarding with PowerShell in progress... [rebooting, SSHD stopped]'' }"
@@ -508,7 +500,7 @@ reboot
 
 $RunCommandOutput = Invoke-AzVMRunCommand -VM $F5VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
 
-Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision,active
+$F5ReadyOutput = Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision,active
 
 # Step 3
 # - upload UCS and reboot
@@ -526,10 +518,7 @@ tmsh -c "modify sys db ui.advisory.text { value  ''Upload UCS and restore config
 
 $RunCommandOutput = Invoke-AzVMRunCommand -VM $F5VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
 
-Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision,active
-
-$ScriptString=''
-[hashtable]$F5ScriptParams = @{}
+$F5ReadyOutput = Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision,active
 
 Write-Host -ForegroundColor Cyan "Upload UCS and restore config manually. `
 Use the following command to restore configuration from UCS:`
@@ -560,7 +549,7 @@ reboot
 
 $RunCommandOutput = Invoke-AzVMRunCommand -VM $F5VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
 
-Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision,active
+$F5ReadyOutput = Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision,active
 
 # Step 4
 # - deprovision modules, leave LTM and APM only
@@ -598,7 +587,9 @@ wait_bigip_ready_config
 while ! getPromptStatus | grep -q ''Active''; do sleep 10; done;
 
 tmsh -c "modify sys db ui.advisory.text { value  ''Onboarding with PowerShell in progress... [re-licensing]'' }"
-tmsh -c "revoke /sys license"
+echo "Y" | tmsh -c "revoke /sys license"
+wait_bigip_ready_provision
+wait_bigip_ready_config
 if [ -n "$AddonRegistrationKeys" ]; then
     /usr/local/bin/SOAPLicenseClient --basekey "$RegistrationKey" --addkey "$AddonRegistrationKeys"
     # AddonRegistrationKeysSpaceSeparated=$(echo $AddonRegistrationKeys | tr -s "," " ")
@@ -609,6 +600,7 @@ else
 fi
 wait_bigip_ready_license
 wait_bigip_ready_config
+wait_bigip_ready_provision
 while ! getPromptStatus | grep -q ''Active''; do sleep 10; done;
 
 BackupUCSFile="/shared/tmp/$(echo $HOSTNAME | cut -d ''.'' -f 1)-$(date +%Y%m%d_%H%M)-v14.1"
@@ -623,7 +615,7 @@ reboot
 
 $RunCommandOutput = Invoke-AzVMRunCommand -VM $F5VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
 
-Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision,active
+$F5ReadyOutput = Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision,active
 
 # Step 5
 # - copy config to v16 partition
@@ -652,7 +644,7 @@ tmsh -c "reboot volume HD1.1"
 
 $RunCommandOutput = Invoke-AzVMRunCommand -VM $F5VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
 
-Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision,active
+$F5ReadyOutput = Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision,active
 
 $ScriptString=''
 [hashtable]$F5ScriptParams = @{}
@@ -672,7 +664,7 @@ tmsh -c "save sys ucs ${BackupUCSFile}"
 
 $RunCommandOutput = Invoke-AzVMRunCommand -VM $F5VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
 
-Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision,active
+$F5ReadyOutput = Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision,active
 
 #endregion
 
