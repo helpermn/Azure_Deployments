@@ -6,6 +6,9 @@
 [string]$RegistrationKey = ""
 [array]$AddonRegistrationKeys = ""
 
+[string]$NewRegistrationKey = ""
+[array]$NewAddonRegistrationKeys = ""
+
 #Parameters that should be set by F5_deploy.ps1 If F5_deploy.ps1 has not been run, set them accordingly in F5_deploy_secrets.ps1.
 
 #[string]$F5VMPassPlain = ""
@@ -443,6 +446,7 @@ Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat
 
 $ScriptString=''
 [hashtable]$F5ScriptParams = @{}
+
 $F5ScriptParams.Add("RegistrationKey", $RegistrationKey)
 $F5ScriptParams.Add("AddonRegistrationKeys", [system.String]::Join(",", $AddonRegistrationKeys))
 
@@ -560,17 +564,20 @@ Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat
 
 # Step 4
 # - deprovision modules, leave LTM and APM only
+# - re-license
 # - backup to a UCS file
 # - reboot
 
 $ScriptString=''
 [hashtable]$F5ScriptParams = @{}
 
+$F5ScriptParams.Add("RegistrationKey", $NewRegistrationKey)
+$F5ScriptParams.Add("AddonRegistrationKeys", [system.String]::Join(",", $NewAddonRegistrationKeys))
+
 $ScriptString = '#!/bin/bash
 
 . /etc/bashrc
 . /usr/lib/bigstart/bigip-ready-functions
-
 
 tmsh -c "modify sys db ui.advisory.text { value  ''Onboarding with PowerShell in progress... [modules deprovisioning: AFM]'' }"
 tmsh -c "modify sys provision afm { level none }"
@@ -590,7 +597,21 @@ wait_bigip_ready_provision
 wait_bigip_ready_config
 while ! getPromptStatus | grep -q ''Active''; do sleep 10; done;
 
-BackupUCSFile="/shared/tmp/$(echo $HOSTNAME | cut -d ''.'' -f 1)-$(date +%Y%m%d_%H%M)"
+tmsh -c "modify sys db ui.advisory.text { value  ''Onboarding with PowerShell in progress... [re-licensing]'' }"
+tmsh -c "revoke /sys license"
+if [ -n "$AddonRegistrationKeys" ]; then
+    /usr/local/bin/SOAPLicenseClient --basekey "$RegistrationKey" --addkey "$AddonRegistrationKeys"
+    # AddonRegistrationKeysSpaceSeparated=$(echo $AddonRegistrationKeys | tr -s "," " ")
+    # tmsh -c "install /sys license registration-key $RegistrationKey add-on-keys { $AddonRegistrationKeysSpaceSeparated }"    
+else
+    /usr/local/bin/SOAPLicenseClient --basekey "$RegistrationKey"
+    # tmsh -c "install /sys license registration-key $RegistrationKey"
+fi
+wait_bigip_ready_license
+wait_bigip_ready_config
+while ! getPromptStatus | grep -q ''Active''; do sleep 10; done;
+
+BackupUCSFile="/shared/tmp/$(echo $HOSTNAME | cut -d ''.'' -f 1)-$(date +%Y%m%d_%H%M)-v14.1"
 tmsh -c "modify sys db ui.advisory.text { value  ''Onboarding with PowerShell in progress... [creating unencrypted UCS: ${BackupUCSFile}]'' }"
 tmsh -c "save sys ucs ${BackupUCSFile}"
 
@@ -645,7 +666,7 @@ tmsh -c "modify sys db ui.advisory.text { value  ''Onboarding with PowerShell ha
 tmsh -c "modify sys db ui.advisory.enabled { value false }"
 
 tmsh -c "save sys config partitions all"
-BackupUCSFile="/shared/tmp/$(echo $HOSTNAME | cut -d ''.'' -f 1)-$(date +%Y%m%d_%H%M)"
+BackupUCSFile="/shared/tmp/$(echo $HOSTNAME | cut -d ''.'' -f 1)-$(date +%Y%m%d_%H%M)-v16.1"
 tmsh -c "save sys ucs ${BackupUCSFile}"
 '
 
