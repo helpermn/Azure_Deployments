@@ -619,7 +619,7 @@ tmsh -c "stop sys service sshd"
 reboot
 '
 Write-Host -ForegroundColor Cyan (Get-Date)"-Step 4:  v14 license revoke, new license activation, UCS creation"
-Write-Host -ForegroundColor Cyan "If get stuck at licensing, connect via SSH and issue:`
+Write-Host -ForegroundColor Cyan "If gets stuck at licensing, connect via SSH and issue:`
 tmsh -c 'install /sys license registration-key REG-KEY-ACTIVATION-CODE add-on-keys { ADDON-KEYS-SPACE-SEPARATED }'`
 Next, the script will continue automatically.`
 "
