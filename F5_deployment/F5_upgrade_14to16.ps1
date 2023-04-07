@@ -281,15 +281,16 @@ Write-Host -ForegroundColor Cyan (Get-Date)"-Default location: "$Location.Displa
 
 #endregion
 
-#region configure F5
+#region CONFIGURE F5
 
 $F5VM = Get-AzVM -ResourceGroupName $ResourceGroupName -Name $F5VMName
 
+Write-Host -ForegroundColor Cyan (Get-Date)"-Wait for F5 readiness: "$F5VM.Name
 $F5ReadyOutput = Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision
 
 # Step 1
 # - v16 disk extension and provisioning
-# - v14 download, installation, reboot into
+# - v14 download, installation, reboot to v14
 
 $ScriptString=''
 [hashtable]$F5ScriptParams = @{}
@@ -314,9 +315,10 @@ tmsh -c "save sys config partitions all"
 tmsh -c "stop sys service sshd"
 reboot
 '
-
+Write-Host -ForegroundColor Cyan (Get-Date)"-Step 1:  v16 disks extension"
 $RunCommandOutput = Invoke-AzVMRunCommand -VM $F5VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
 
+Write-Host -ForegroundColor Cyan (Get-Date)"-Wait for F5 readiness: "$F5VM.Name
 $F5ReadyOutput = Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision
 
 $ScriptString=''
@@ -358,7 +360,7 @@ if ! /usr/bin/checkisomd5 "/shared/images/$ISOFileName" >/dev/null 2>&1; then
     exit 1
 fi
 '
-
+Write-Host -ForegroundColor Cyan (Get-Date)"-Step 1:  v16 provision modules, v14 ISO download and varify"
 $RunCommandOutput = Invoke-AzVMRunCommand -VM $F5VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
 
 if ($RunCommandOutput.Value.Message -like "*ISOVerificationFailed*") {
@@ -393,9 +395,10 @@ while true; do
     sleep 10
 done
 '
-
+Write-Host -ForegroundColor Cyan (Get-Date)"-Step 1:  v14 install and reboot to v14"
 $RunCommandOutput = Invoke-AzVMRunCommand -VM $F5VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
 
+Write-Host -ForegroundColor Cyan (Get-Date)"-Wait for F5 readiness: "$F5VM.Name
 $F5ReadyOutput = Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision
 
 ###
@@ -437,9 +440,10 @@ tmsh -c "save sys config partitions all"
 tmsh -c "stop sys service sshd"
 reboot
 '
-
+Write-Host -ForegroundColor Cyan (Get-Date)"-Step 2:  v14 set passwords, disks extension"
 $RunCommandOutput = Invoke-AzVMRunCommand -VM $F5VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
 
+Write-Host -ForegroundColor Cyan (Get-Date)"-Wait for F5 readiness: "$F5VM.Name
 $F5ReadyOutput = Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision
 
 $ScriptString=''
@@ -486,9 +490,10 @@ tmsh -c "save sys config partitions all"
 tmsh -c "stop sys service sshd"
 reboot
 '
-
+Write-Host -ForegroundColor Cyan (Get-Date)"-Step 2:  v14 provision modules, license activation"
 $RunCommandOutput = Invoke-AzVMRunCommand -VM $F5VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
 
+Write-Host -ForegroundColor Cyan (Get-Date)"-Wait for F5 readiness: "$F5VM.Name
 $F5ReadyOutput = Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat all
 
 # Step 3
@@ -504,10 +509,8 @@ $ScriptString = '#!/bin/bash
 
 tmsh -c "modify sys db ui.advisory.text { value  ''Upload UCS and restore config manually. PowerShell onboarding script has been stopped.'' }"
 '
-
+Write-Host -ForegroundColor Cyan (Get-Date)"-Step 3:  v14 manual UCS restore"
 $RunCommandOutput = Invoke-AzVMRunCommand -VM $F5VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
-
-$F5ReadyOutput = Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat all
 
 Write-Host -ForegroundColor Cyan "Upload UCS and restore config manually. `
 Use the following command to restore configuration from UCS:`
@@ -519,6 +522,9 @@ $AskIfContinue = Read-Host
 if ($AskIfContinue -ne "Y") {
     exit
 }
+
+Write-Host -ForegroundColor Cyan (Get-Date)"-Wait for F5 readiness: "$F5VM.Name
+$F5ReadyOutput = Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat config,provision
 
 $ScriptString=''
 [hashtable]$F5ScriptParams = @{}
@@ -535,9 +541,10 @@ tmsh -c "save sys config partitions all"
 tmsh -c "stop sys service sshd"
 reboot
 '
-
+Write-Host -ForegroundColor Cyan (Get-Date)"-Step 3:  v14 manual UCS restore completion"
 $RunCommandOutput = Invoke-AzVMRunCommand -VM $F5VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
 
+Write-Host -ForegroundColor Cyan (Get-Date)"-Wait for F5 readiness: "$F5VM.Name
 $F5ReadyOutput = Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat all
 
 # Step 4
@@ -564,9 +571,10 @@ tmsh -c "save sys config partitions all"
 tmsh -c "stop sys service sshd"
 reboot
 '
-
+Write-Host -ForegroundColor Cyan (Get-Date)"-Step 4:  v14 deprovision modules"
 $RunCommandOutput = Invoke-AzVMRunCommand -VM $F5VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
 
+Write-Host -ForegroundColor Cyan (Get-Date)"-Wait for F5 readiness: "$F5VM.Name
 $F5ReadyOutput = Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat all
 
 $ScriptString=''
@@ -610,9 +618,14 @@ tmsh -c "save sys config partitions all"
 tmsh -c "stop sys service sshd"
 reboot
 '
-
+Write-Host -ForegroundColor Cyan (Get-Date)"-Step 4:  v14 license revoke, new license activation, UCS creation"
+Write-Host -ForegroundColor Cyan "If get stuck at licensing, connect via SSH and issue:`
+tmsh -c 'install /sys license registration-key REG-KEY-ACTIVATION-CODE add-on-keys { ADDON-KEYS-SPACE-SEPARATED }'`
+Next, the script will continue automatically.`
+"
 $RunCommandOutput = Invoke-AzVMRunCommand -VM $F5VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
 
+Write-Host -ForegroundColor Cyan (Get-Date)"-Wait for F5 readiness: "$F5VM.Name
 $F5ReadyOutput = Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat all
 
 # Step 5
@@ -639,9 +652,10 @@ tmsh -c "save sys config partitions all"
 tmsh -c "stop sys service sshd"
 tmsh -c "reboot volume HD1.1"
 '
-
+Write-Host -ForegroundColor Cyan (Get-Date)"-Step 5:  copy config to v16, reboot to v16"
 $RunCommandOutput = Invoke-AzVMRunCommand -VM $F5VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
 
+Write-Host -ForegroundColor Cyan (Get-Date)"-Wait for F5 readiness: "$F5VM.Name
 $F5ReadyOutput = Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat all
 
 $ScriptString=''
@@ -652,6 +666,11 @@ $ScriptString = '#!/bin/bash
 . /etc/bashrc
 . /usr/lib/bigstart/bigip-ready-functions
 
+tmsh -c "modify sys db ui.advisory.text { value  ''Onboarding with PowerShell in progress... [deleting EPSEC packages]'' }"
+for epsecPackage in $(tmsh -c "list apm epsec epsec-package system-package" | grep -B 1 "system-package false" | grep "^apm epsec epsec-package " | cut -d " " -f 4); do
+    tmsh -c "delete apm epsec epsec-package ${epsecPackage}";
+done;
+
 tmsh -c "modify sys db ui.advisory.text { value  ''Onboarding with PowerShell has been completed.'' }"
 tmsh -c "modify sys db ui.advisory.enabled { value false }"
 
@@ -659,15 +678,13 @@ tmsh -c "save sys config partitions all"
 BackupUCSFile="/shared/tmp/$(echo $HOSTNAME | cut -d ''.'' -f 1)-$(date +%Y%m%d_%H%M)-v16.1"
 tmsh -c "save sys ucs ${BackupUCSFile}"
 '
-
+Write-Host -ForegroundColor Cyan (Get-Date)"-Step 5:  v16 delete epsec packages, save config, UCS creation"
 $RunCommandOutput = Invoke-AzVMRunCommand -VM $F5VM -CommandId 'RunShellScript' -ScriptString $ScriptString -Parameter $F5ScriptParams
 
+Write-Host -ForegroundColor Cyan (Get-Date)"-Wait for F5 readiness: "$F5VM.Name
 $F5ReadyOutput = Wait-F5Ready -F5VMNames $F5VMName -ResourceGroupName $ResourceGroupName -ForWhat all
 
-Write-Host -ForegroundColor Cyan "Use Configuration Utility. Go to:`
-System -> Software Management -> Antivirus Check Updates -> Package Status`
-Delete all packages not marked as a System Package.
-"
+Write-Host -ForegroundColor Cyan "v16 onboarding has been completed."
 
 #endregion
 
