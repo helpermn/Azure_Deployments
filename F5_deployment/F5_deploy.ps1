@@ -329,7 +329,7 @@ if ($null -eq $F5NIC) {
 
 #region VM
 
-$F5VMImage = Get-AzVMImage -Location $LocationName -PublisherName "f5-networks" -Offer "f5-big-ip-byol" -Skus "f5-big-all-2slot-byol" -Version "16.1.303000"
+$F5VMImage = Get-AzVMImage -Location $LocationName -PublisherName "f5-networks" -Offer "f5-big-ip-byol" -Skus "f5-big-all-2slot-byol" -Version "16.1.5020000"
 $F5AgreementTerms = Get-AzMarketplaceTerms -Name $F5VMImage.PurchasePlan.Name -Product $F5VMImage.PurchasePlan.Product -Publisher $F5VMImage.PurchasePlan.Publisher -SubscriptionId $SubscriptionId -OfferType 'virtualmachine'
 
 if (!$F5AgreementTerms.Accepted) {
@@ -373,7 +373,7 @@ if ($null -eq $F5VM) {
     # Get-AzVMImageSku -Location $LocationName -PublisherName "f5-networks" -Offer "f5-big-ip-byol"
     # Get-AzVMImage -Location $LocationName -PublisherName "f5-networks" -Offer "f5-big-ip-byol" -Skus "f5-big-all-2slot-byol"
     # Get-AzVMImage -Location $LocationName -PublisherName "f5-networks" -Offer "f5-big-ip-byol" -Skus "f5-big-all-2slot-byol" -Version "16.1.303000"
-    $F5VM = Set-AzVMSourceImage -VM $F5VM -PublisherName "f5-networks" -Offer "f5-big-ip-byol" -Skus "f5-big-all-2slot-byol" -Version "16.1.303000"
+    $F5VM = Set-AzVMSourceImage -VM $F5VM -PublisherName "f5-networks" -Offer "f5-big-ip-byol" -Skus "f5-big-all-2slot-byol" -Version "16.1.5020000"
     $F5VM = Set-AzVMPlan -VM $F5VM -Name $F5AgreementTerms.Name -Product $F5AgreementTerms.Product -Publisher $F5AgreementTerms.Publisher
     $F5VM = New-AzVM -ResourceGroupName $ResourceGroupName -Location $LocationName -VM $F5VM
 
